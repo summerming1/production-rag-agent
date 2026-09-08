@@ -26,4 +26,4 @@ class RAGAnswer:
     answer: str
     citations: tuple[str, ...]
     hits: tuple[RetrievalHit, ...]
-    retrieval_confidence: float
+    retrieval_coverage: float

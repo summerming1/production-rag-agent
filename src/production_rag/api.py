@@ -33,6 +33,6 @@ def create_app(corpus_path: str = "data/sample_corpus.jsonl"):
     @app.post("/rag/chat")
     def chat(q: Query):
         ans = pipeline.answer(q.question, q.top_k)
-        return {"answer": ans.answer, "citations": ans.citations, "retrieval_confidence": ans.retrieval_confidence}
+        return {"answer": ans.answer, "citations": ans.citations, "retrieval_coverage": ans.retrieval_coverage}
 
     return app

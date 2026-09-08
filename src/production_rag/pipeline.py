@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .citations import build_context, citation_label
+from .citations import build_context, cited_labels
 from .generator import ExtractiveFallbackGenerator, Generator
 from .hybrid import HybridRetriever
 from .rerank import CrossEncoderReranker
@@ -66,7 +66,7 @@ class RAGPipeline:
             "Answer with citations."
         )
         answer = self.generator.generate(SYSTEM_PROMPT, user)
-        citations = tuple(citation_label(hit) for hit in hits)
+        citations = cited_labels(answer, hits)
         return RAGAnswer(question, answer, citations, tuple(hits), coverage)
 
     def answer(self, question: str, top_k: int = 6) -> RAGAnswer:
