@@ -1,0 +1,3 @@
+{"query":"Why use reciprocal rank fusion for hybrid retrieval?","relevant_ids":["doc-rrf"]}
+{"query":"How should a grounded system behave when evidence is missing?","relevant_ids":["doc-citations"]}
+{"query":"What does BM25 use to rank documents?","relevant_ids":["doc-bm25"]}

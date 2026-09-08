@@ -1,0 +1,21 @@
+retrieval:
+  mode: hybrid
+  bm25_top_k: 20
+  dense_top_k: 20
+  final_top_k: 6
+  fusion: reciprocal_rank_fusion
+  rrf_k: 60
+  max_hits_per_source: 3
+
+optional_dense:
+  enabled: false
+  model: sentence-transformers/all-MiniLM-L6-v2
+
+optional_reranker:
+  enabled: false
+  model: cross-encoder/ms-marco-MiniLM-L-6-v2
+
+generation:
+  provider: extractive-demo
+  # For a local vLLM/OpenAI-compatible server, switch to the adapter in
+  # production_rag.generator.OpenAICompatibleGenerator.
