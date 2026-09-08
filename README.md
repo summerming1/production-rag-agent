@@ -6,6 +6,22 @@ A **runnable, inspectable RAG engineering showcase** with hybrid retrieval, cita
 
 This repository is intentionally designed so a technical reviewer can run the core retrieval and tests **without an API key, vector database, or GPU**. Optional dense retrieval, cross-encoder reranking, FastAPI serving, and vLLM/OpenAI-compatible generation can be enabled separately.
 
+## 15-second reviewer map
+
+| Capability | Verify here |
+|---|---|
+| BM25 lexical retrieval | [`src/production_rag/bm25.py`](src/production_rag/bm25.py) |
+| Dense retrieval adapter | [`src/production_rag/dense.py`](src/production_rag/dense.py) |
+| RRF hybrid fusion + source diversity | [`src/production_rag/hybrid.py`](src/production_rag/hybrid.py) |
+| Cross-encoder reranking adapter | [`src/production_rag/rerank.py`](src/production_rag/rerank.py) |
+| Grounded context + citation validation | [`src/production_rag/citations.py`](src/production_rag/citations.py) |
+| Retrieval metrics | [`src/production_rag/eval.py`](src/production_rag/eval.py) |
+| RAG answer orchestration | [`src/production_rag/pipeline.py`](src/production_rag/pipeline.py) |
+| Bounded agent control flow | [`src/production_rag/agent.py`](src/production_rag/agent.py) |
+| vLLM/OpenAI-compatible generation | [`src/production_rag/generator.py`](src/production_rag/generator.py) |
+| HTTP serving | [`src/production_rag/api.py`](src/production_rag/api.py) |
+| Runnable behavior | [`tests/`](tests/) and [`scripts/run_demo.py`](scripts/run_demo.py) |
+
 ## What it demonstrates
 
 - **BM25 lexical retrieval** implemented in the repository
