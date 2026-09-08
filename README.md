@@ -1,5 +1,7 @@
 # Production RAG Agent
 
+[![core-tests](https://github.com/summerming1/production-rag-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/summerming1/production-rag-agent/actions/workflows/ci.yml)
+
 A **runnable, inspectable RAG engineering showcase** with hybrid retrieval, citations, retrieval evaluation, optional reranking, OpenAI-compatible generation, and bounded agent orchestration.
 
 This repository is intentionally designed so a technical reviewer can run the core retrieval and tests **without an API key, vector database, or GPU**. Optional dense retrieval, cross-encoder reranking, FastAPI serving, and vLLM/OpenAI-compatible generation can be enabled separately.
