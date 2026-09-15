@@ -2,9 +2,9 @@
 
 [![core-tests](https://github.com/summerming1/production-rag-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/summerming1/production-rag-agent/actions/workflows/ci.yml)
 
-A **runnable, inspectable RAG engineering showcase** with hybrid retrieval, citations, retrieval evaluation, optional reranking, OpenAI-compatible generation, and bounded agent orchestration.
+A runnable, inspectable RAG engineering showcase focused on **retrieval quality, grounded generation, failure handling, and bounded orchestration**.
 
-This repository is intentionally designed so a technical reviewer can run the core retrieval and tests **without an API key, vector database, or GPU**. Optional dense retrieval, cross-encoder reranking, FastAPI serving, and vLLM/OpenAI-compatible generation can be enabled separately.
+The core path runs without an API key, vector database, or GPU. Optional dense retrieval, cross-encoder reranking, FastAPI serving, and OpenAI-compatible/vLLM generation are isolated behind adapters.
 
 ## 15-second reviewer map
 
@@ -12,111 +12,99 @@ This repository is intentionally designed so a technical reviewer can run the co
 |---|---|
 | BM25 lexical retrieval | [`src/production_rag/bm25.py`](src/production_rag/bm25.py) |
 | Dense retrieval adapter | [`src/production_rag/dense.py`](src/production_rag/dense.py) |
-| RRF hybrid fusion + source diversity | [`src/production_rag/hybrid.py`](src/production_rag/hybrid.py) |
-| Cross-encoder reranking adapter | [`src/production_rag/rerank.py`](src/production_rag/rerank.py) |
-| Grounded context + citation validation | [`src/production_rag/citations.py`](src/production_rag/citations.py) |
-| Retrieval metrics | [`src/production_rag/eval.py`](src/production_rag/eval.py) |
-| RAG answer orchestration | [`src/production_rag/pipeline.py`](src/production_rag/pipeline.py) |
-| Bounded agent control flow | [`src/production_rag/agent.py`](src/production_rag/agent.py) |
-| vLLM/OpenAI-compatible generation | [`src/production_rag/generator.py`](src/production_rag/generator.py) |
-| HTTP serving | [`src/production_rag/api.py`](src/production_rag/api.py) |
+| RRF fusion + source diversity | [`src/production_rag/hybrid.py`](src/production_rag/hybrid.py) |
+| Cross-encoder reranking | [`src/production_rag/rerank.py`](src/production_rag/rerank.py) |
+| Citation / grounding checks | [`src/production_rag/citations.py`](src/production_rag/citations.py) |
+| Retrieval evaluation | [`src/production_rag/eval.py`](src/production_rag/eval.py) |
+| Grounded answer pipeline | [`src/production_rag/pipeline.py`](src/production_rag/pipeline.py) |
+| Bounded agent / abstention | [`src/production_rag/agent.py`](src/production_rag/agent.py) |
+| OpenAI-compatible generation | [`src/production_rag/generator.py`](src/production_rag/generator.py) |
+| FastAPI contract | [`src/production_rag/api.py`](src/production_rag/api.py), [`tests/test_api.py`](tests/test_api.py) |
 | Runnable behavior | [`tests/`](tests/) and [`scripts/run_demo.py`](scripts/run_demo.py) |
 
-## What it demonstrates
+## What this demonstrates
 
-- **BM25 lexical retrieval** implemented in the repository
-- Optional **dense retrieval** with SentenceTransformers
-- **Reciprocal Rank Fusion (RRF)** for hybrid ranking instead of naïvely adding incompatible score scales
-- Per-source diversity caps to avoid one long document dominating the context
-- Optional **cross-encoder reranking**
-- Source-preserving **citations**
-- Retrieval metrics: **Recall@k, MRR, nDCG@k**
-- Explicit **abstention** when retrieval returns no evidence
-- Optional FastAPI `/retrieve`, `/rag/chat`, `/health` endpoints
-- Optional OpenAI-compatible generator suitable for **vLLM** or another local server
-- A deliberately **bounded agent** rather than an untestable autonomous loop
+- BM25 and optional dense retrieval combined with **Reciprocal Rank Fusion**
+- source-diversity constraints after final ranking
+- optional cross-encoder reranking over a **larger candidate pool**, not only the final top-k
+- retrieval metrics: **Recall@k, MRR, nDCG@k**
+- separate evaluation of initial retrieval and final post-rerank retrieval
+- bounded context construction with source/page provenance
+- structural citation validation that fails closed on unknown or missing citations
+- explicit abstention; the bounded agent does **not call the generator** when retrieval policy rejects a request
+- optional FastAPI `/retrieve`, `/rag/chat`, `/health` endpoints with request validation
+- optional OpenAI-compatible generator suitable for local **vLLM**
 
-## Quick start: no API key
+A valid citation number proves only that the cited item was present in the frozen context. It does **not** by itself prove semantic support for every generated claim; evidence-faithfulness evaluation remains a separate layer.
+
+## Quick start
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-# If pytest is already available:
-PYTHONPATH=src pytest -q
-PYTHONPATH=src python scripts/run_demo.py
-```
-
-For a normal editable install:
-
-```bash
 pip install -e '.[dev]'
 pytest -q
 python scripts/run_demo.py
 ```
 
-## Example architecture
+To run API contract tests and serve the example API:
+
+```bash
+pip install -e '.[dev,api]'
+pytest -q tests/test_api.py
+uvicorn 'production_rag.api:create_app' --factory --host 127.0.0.1 --port 8100
+```
+
+## Architecture
 
 ```text
 Corpus
   +--> BM25 ------------------+
   |                           |
-  +--> Dense (optional) ------+--> RRF --> source diversity
-                                        |
-                                        v
-                               reranker (optional)
-                                        |
-                                        v
-                                cited context
-                                        |
-                                        v
-                           local vLLM / API model
-                                        |
-                                        v
-                               answer or abstain
+  +--> Dense (optional) ------+--> RRF --> candidate pool
+                                         |
+                                         v
+                                  reranker (optional)
+                                         |
+                                         v
+                                  source diversity
+                                         |
+                                         v
+                                    final top-k
+                                         |
+                                         v
+                                cited bounded context
+                                         |
+                                         v
+                              local vLLM / API model
+                                         |
+                                         v
+                              citation validation
+                                         |
+                              answer or abstain
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design trade-offs.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for design trade-offs.
 
-## Run retrieval evaluation
+## Retrieval evaluation
 
-The included demo evaluates a frozen sample set using Recall@k, MRR and nDCG@k. The point is not the toy corpus score; the point is that retrieval quality is treated as a separately measurable subsystem.
+The included sample set is intentionally small and demonstrates the mechanics rather than claiming benchmark quality.
 
 ```bash
 PYTHONPATH=src python scripts/run_demo.py
 ```
 
-## Enable dense retrieval
+`evaluate_retrieval()` measures the retriever stage. `evaluate_pipeline_retrieval()` measures the final stage after optional reranking. Keeping these separate helps locate whether a regression came from recall, fusion/reranking, or answer generation.
+
+## Optional dense retrieval and reranking
 
 ```bash
-pip install -e '.[dense]'
+pip install -e '.[dense,rerank]'
 ```
 
-```python
-from production_rag.dense import SentenceTransformerRetriever
-from production_rag.hybrid import HybridRetriever
-from production_rag.corpus import load_jsonl_corpus
+`HybridRetriever` keeps BM25 and dense score scales separate and fuses ranks with RRF. When a reranker is configured, `RAGPipeline` retrieves a larger pool first, reranks it, then applies source diversity before the final context is built.
 
-docs = load_jsonl_corpus("data/sample_corpus.jsonl")
-dense = SentenceTransformerRetriever(docs)
-retriever = HybridRetriever(docs, dense=dense)
-```
-
-## Enable reranking
-
-```bash
-pip install -e '.[rerank]'
-```
-
-Use `CrossEncoderReranker` in `RAGPipeline`. Reranking is intentionally second-stage so expensive cross-encoder scoring is applied only to a small candidate set.
-
-## Serve through FastAPI
-
-```bash
-pip install -e '.[api]'
-uvicorn 'production_rag.api:create_app' --factory --host 127.0.0.1 --port 8100
-```
-
-## Connect to a local vLLM/OpenAI-compatible model
+## OpenAI-compatible / vLLM generation
 
 ```bash
 pip install -e '.[llm]'
@@ -131,20 +119,23 @@ generator = OpenAICompatibleGenerator(
 )
 ```
 
-## Why this repository is intentionally not overbuilt
+The adapter sends deterministic-temperature chat requests. Authentication, retries, rate limiting, production observability, and model-serving lifecycle belong in deployment-specific infrastructure rather than being faked in this showcase.
 
-A portfolio repo becomes less credible when it claims production features it cannot actually demonstrate. This project therefore separates:
+## Engineering boundaries
 
-- **implemented and runnable now**: BM25, hybrid RRF, citations, source diversity, retrieval evaluation, abstention, unit tests;
-- **optional but real adapters**: SentenceTransformers dense retrieval, cross-encoder reranking, FastAPI, OpenAI-compatible/vLLM generation;
-- **documented production extensions**: persistent vector stores, ACL filters, incremental indexing, distributed workers, observability and release gates.
+Implemented and tested here: lexical retrieval, hybrid fusion, source diversity, citation structure checks, retrieval evaluation, explicit abstention, API validation, and bounded orchestration.
 
-No private documents, prompts, answers, API credentials, or customer-specific logic are included.
+Optional real adapters: SentenceTransformers dense retrieval, CrossEncoder reranking, FastAPI, and OpenAI-compatible/vLLM generation.
 
-## Relationship to private work
+Documented rather than claimed: persistent vector stores, ACL-aware retrieval, ingestion backpressure, incremental indexing, production authorization, distributed workers, release gates, and full semantic citation-faithfulness judging.
 
-The design is informed by experience building RAG components inside a larger domain-data and LLM post-training workflow, including hybrid retrieval, reranking, metadata-aware filtering, source diversity and retrieval auditing. The implementation in this public repo was written from scratch as a generic showcase.
+No private documents, prompts, answers, API credentials, or customer-specific logic are included. The implementation is a generic public showcase informed by private engineering experience, not a copy of a customer repository.
 
 ## Portfolio relevance
 
-This repository supports work involving **RAG architecture, hybrid retrieval, reranking, RAG evaluation, local/open-weight LLM deployment, vLLM integration, grounded generation, and agent orchestration**.
+This repository supports remote work involving **RAG architecture, hybrid retrieval, retrieval/reranking evaluation, grounded generation, failure analysis, local/open-weight LLM integration, vLLM, API engineering, and bounded agent workflows**.
+
+Related public work:
+
+- [27B LLM Fine-Tuning, Evaluation & vLLM Deployment](https://github.com/summerming1/llm-posttraining-case-study)
+- [Industrial CV Production Pipeline](https://github.com/summerming1/industrial-cv-production-pipeline)

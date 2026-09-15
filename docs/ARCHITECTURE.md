@@ -1,57 +1,75 @@
 # Architecture and engineering boundaries
 
-This public repository is a clean-room reference implementation. It borrows **engineering ideas**, not source code, from experience with private RAG/data-generation systems.
+This public repository is a clean-room reference implementation. It borrows engineering ideas, not source code, from experience with private RAG and post-training systems.
 
 ```text
 Documents
-   |
-   +--> lexical index (BM25)
-   |
-   +--> optional dense embeddings
+   +--> BM25
+   +--> optional dense retrieval
              |
              v
-       ranked candidate lists
+     reciprocal-rank fusion
              |
              v
- Reciprocal Rank Fusion (RRF)
+       candidate pool
              |
              v
- source-diversity constraint
+ optional cross-encoder reranking
              |
              v
- optional cross-encoder reranker
+    source-diversity constraint
              |
              v
- cited context construction
+         final top-k
+             |
+             v
+ bounded cited context
              |
              v
  OpenAI-compatible generator / vLLM
              |
              v
- grounded answer or abstention
+ structural citation audit
+             |
+      answer or abstain
 ```
 
 ## Why RRF instead of score addition
 
-Raw BM25 scores and dense cosine similarities are not naturally calibrated. Adding them directly creates an implicit, corpus-dependent weighting problem. Reciprocal Rank Fusion combines rank positions instead, which is robust and easy to audit.
+Raw BM25 and dense-cosine scores are not naturally calibrated. RRF combines rank positions instead of assuming their numeric scales are comparable.
 
-## Why retrieval evaluation is first-class
+## Why rerank before final truncation
 
-A RAG system can fail because retrieval missed the evidence even when the language model is capable. This repo includes Recall@k, MRR and nDCG@k so retrieval can be frozen and evaluated independently from answer generation.
+A second-stage reranker only adds value if it sees more than the final top-k. The pipeline therefore preserves a larger fused candidate pool, applies the reranker, and only then enforces source diversity and final context size.
+
+## Why evaluation is split by stage
+
+A RAG failure can come from initial recall, fusion/reranking, context construction, generation, or grounding policy. The public API exposes evaluation helpers for both the retriever stage and the final retrieval stage so those failures are not collapsed into one score.
+
+## Grounding boundary
+
+Citation validation is fail-closed for missing or out-of-range citation labels. This is a structural check: it verifies that a cited rank existed in the frozen context. It does not prove the cited passage semantically entails a generated claim. Full evidence-faithfulness evaluation requires a separate benchmark or judge protocol.
 
 ## Agent boundary
 
-The included agent is intentionally bounded: retrieve, answer, or abstain. It is not an autonomous loop. For enterprise systems, explicit orchestration is often easier to test, secure and reason about than unrestricted tool recursion.
+The agent is deliberately bounded. A retrieval-policy rejection returns an abstention without calling the generator. If generation runs but citation validation fails, the generated text is not returned as a successful answer.
 
-## What would change in a larger production system
+The included retrieval-coverage value is a routing heuristic, not a calibrated probability of correctness.
+
+## API boundary
+
+FastAPI request models validate non-empty questions and bounded `top_k`. CI includes real HTTP/OpenAPI contract tests. Production authentication, authorization, rate limiting, retries, tracing, and multi-tenant corpus isolation are deployment concerns and are not claimed here.
+
+## Larger-system extensions
 
 - persistent vector store / FAISS or managed vector database
 - incremental indexing and document-version lineage
-- async ingestion and backpressure
 - metadata ACL filtering before retrieval
-- query rewriting and multi-query retrieval
-- observability: latency, hit-rate, zero-hit rate, citation coverage, token cost
-- offline evaluation gates tied to a frozen benchmark
-- auth, rate limiting and secret management
+- async ingestion, backpressure and retry policy
+- query rewriting / multi-query retrieval
+- semantic citation-faithfulness evaluation
+- observability: stage latency, hit rate, zero-hit rate, abstention rate, citation failures and token cost
+- frozen offline benchmark gates tied to release decisions
+- auth, rate limiting, secret management and tenant isolation
 
-These are deliberately documented rather than faked in a small showcase.
+These are documented as extensions rather than represented as completed production features.

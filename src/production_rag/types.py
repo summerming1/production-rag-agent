@@ -27,3 +27,5 @@ class RAGAnswer:
     citations: tuple[str, ...]
     hits: tuple[RetrievalHit, ...]
     retrieval_coverage: float
+    status: str = "answer"
+    citation_issues: tuple[str, ...] = ()

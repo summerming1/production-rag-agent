@@ -16,8 +16,8 @@ class BoundedRAGAgent:
     """A deliberately bounded agent, not an open-ended autonomous loop.
 
     It has two explicit actions: retrieve/answer, or abstain. That makes the
-    control flow deterministic and testable, which is useful for enterprise
-    RAG where unsupported answers can be more costly than extra orchestration.
+    control flow deterministic and testable. An abstention never calls the
+    generator merely to produce a nominal "answer".
     """
 
     def __init__(self, pipeline: RAGPipeline, min_hits: int = 1) -> None:
@@ -29,12 +29,21 @@ class BoundedRAGAgent:
     def run(self, question: str, top_k: int = 6) -> tuple[AgentDecision, RAGAnswer]:
         hits = self.pipeline.retrieve(question, top_k)
         if len(hits) < self.min_hits:
-            answer = self.pipeline.answer_from_hits(question, hits)
             return (
                 AgentDecision("abstain", "retrieval returned too little evidence"),
+                self.pipeline.abstain(
+                    question,
+                    hits,
+                    reason="retrieval returned too little evidence",
+                ),
+            )
+        answer = self.pipeline.answer_from_hits(question, hits)
+        if answer.status == "abstain":
+            return (
+                AgentDecision("abstain", "generated answer failed grounding checks"),
                 answer,
             )
         return (
-            AgentDecision("answer", "retrieval returned sufficient evidence"),
-            self.pipeline.answer_from_hits(question, hits),
+            AgentDecision("answer", "retrieval and grounding checks passed"),
+            answer,
         )

@@ -1,11 +1,20 @@
-from production_rag.eval import evaluate_retrieval
+from production_rag.eval import evaluate_pipeline_retrieval, evaluate_retrieval
 from production_rag.hybrid import HybridRetriever
+from production_rag.pipeline import RAGPipeline
 from production_rag.types import Document
 
 
-def test_retrieval_metrics_are_bounded():
-    docs = [Document("a", "bm25 sparse lexical retrieval", "s"), Document("b", "unrelated text", "s2")]
-    m = evaluate_retrieval(HybridRetriever(docs), [{"query":"bm25 lexical", "relevant_ids":["a"]}], top_k=1)
-    assert m.recall_at_k == 1.0
-    assert m.mrr == 1.0
-    assert m.ndcg_at_k == 1.0
+CASES = [
+    {"query": "alpha", "relevant_ids": ["a"]},
+    {"query": "beta", "relevant_ids": ["b"]},
+]
+
+
+def test_retriever_and_final_pipeline_can_be_evaluated_separately():
+    retriever = HybridRetriever(
+        [Document("a", "alpha evidence", "s1"), Document("b", "beta evidence", "s2")]
+    )
+    direct = evaluate_retrieval(retriever, CASES, top_k=1)
+    final = evaluate_pipeline_retrieval(RAGPipeline(retriever), CASES, top_k=1)
+    assert direct.recall_at_k == 1.0
+    assert final.recall_at_k == 1.0
