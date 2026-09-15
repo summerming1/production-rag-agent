@@ -4,4 +4,11 @@ from .hybrid import HybridRetriever
 from .pipeline import RAGPipeline
 from .types import Document, RetrievalHit
 
-__all__ = ["Document", "RetrievalHit", "HybridRetriever", "RAGPipeline", "BoundedRAGAgent", "load_jsonl_corpus"]
+__all__ = [
+    "BoundedRAGAgent",
+    "Document",
+    "HybridRetriever",
+    "RAGPipeline",
+    "RetrievalHit",
+    "load_jsonl_corpus",
+]
